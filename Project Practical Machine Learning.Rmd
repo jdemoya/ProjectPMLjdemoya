@@ -1,0 +1,66 @@
+---
+title: "Project Practical Machine Learning jdemoya"
+author: "Jose De Moya"
+date: "Saturday, October 07, 2014"
+output: html_document
+---
+
+The goal of the project is predict the manner in with the people in the files did the exercises.
+
+That is the procedure:
+
+First I load the data in two variables:
+
+```{r}
+library(caret);
+setwd("D:/Cursos/Coursera/Data Science/Practical Machine Learning");
+training <- read.csv("pml-training.csv"); 
+testing <- read.csv("pml-testing.csv");
+dim(training);
+dim(testing);
+```
+
+```{r, eval=FALSE}
+summary(cars)
+```
+
+The variables that are very correlated that must be excluded of the model are obtained from but first We must do a preprocess because the factor variables don't work with correlations 
+
+```{r}
+str(training);
+```
+
+First I remove the variables with zero variance because they are not good predictors
+
+```{r}
+nsv <- nearZeroVar(training,saveMetrics=TRUE);
+nsv
+nsv[nsv$nzv == TRUE,];
+```
+
+The factor variables can be converted into numeric or dates when apply
+
+
+```{r}
+n <- length(names(training));
+m <- length(training[,1]);
+training1 <- training;
+
+for (i in 1:n){
+  if (!is.factor(training1[,i])){
+    training1[is.na(training1[,i]),i] <- 0;
+  }  
+  else{
+    x <- c(x,i);
+  }
+}
+
+for (i in 1:n){
+  if (is.factor(training1[,i])){
+    f <- training1[,i];
+    training1[,i] <- as.character(levels(f))[f];
+  }
+}
+mcor <- cov2cor(cov(training1[,-x]));
+mcor>=0.7;
+```
