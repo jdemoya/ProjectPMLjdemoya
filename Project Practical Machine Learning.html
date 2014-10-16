@@ -345,6 +345,8 @@ training_miss = missForest(training1[,19:159]);
 ## Control         8     174     0.04396
 </code></pre>
 
+<p>Then I compute de cross validation error of the model</p>
+
 <pre><code class="r">cv_miss = missForest(cv[,19:159]);
 </code></pre>
 
@@ -377,6 +379,14 @@ training_miss = missForest(training1[,19:159]);
 
 <pre><code>## Error: objeto &#39;cv1&#39; no encontrado
 </code></pre>
+
+<pre><code class="r">cmrf;
+</code></pre>
+
+<pre><code>## Error: objeto &#39;cmrf&#39; no encontrado
+</code></pre>
+
+<p>Then I predict the classe variable in the testing set </p>
 
 <pre><code class="r">testing_miss = missForest(testing[,19:159]);
 </code></pre>

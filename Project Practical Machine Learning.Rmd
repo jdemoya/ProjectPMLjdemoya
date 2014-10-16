@@ -118,6 +118,10 @@ modrf <- train(classe ~ cvtd_timestamp + new_window + pitch_belt + yaw_belt + to
 
 print(modrf$finalModel);
 
+```
+
+Then I compute de cross validation error of the model
+```{r}
 cv_miss = missForest(cv[,19:159]);
 cv1 <- cbind(cv[,1:18],cv_miss$ximp,cv[,160]);
 names(cv1)[160] <- "classe"
@@ -125,7 +129,12 @@ names(cv1)[160] <- "classe"
 predrf <- predict(modrf,cv1);
 
 cmrf <- confusionMatrix(predrf,cv1$classe);
+cmrf;
+```
 
+Then I predict the classe variable in the testing set 
+
+```{r}
 testing_miss = missForest(testing[,19:159]);
 testing1 <- cbind(testing[,1:18],testing_miss$ximp,testing[,160]);
 names(testing1)[160] <- "problem_id";
