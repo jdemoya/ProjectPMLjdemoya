@@ -1,11 +1,11 @@
 ---
 title: "Project Practical Machine Learning jdemoya"
 author: "Jose De Moya"
-date: "Saturday, October 07, 2014"
-output: html_document
+date: "Saturday, October 14, 2014"
+output: word_document
 ---
 
-The goal of the project is predict the manner in with the people in the files did the exercises.
+The goal of the project is predict the way people do the exercises for a testing examples based on a training set that we can get for the site
 
 That is the procedure:
 
@@ -14,53 +14,129 @@ First I load the data in two variables:
 ```{r}
 library(caret);
 setwd("D:/Cursos/Coursera/Data Science/Practical Machine Learning");
-training <- read.csv("pml-training.csv"); 
+trainingtemp <- read.csv("pml-training.csv"); 
 testing <- read.csv("pml-testing.csv");
-dim(training);
+dim(trainingtemp);
 dim(testing);
+set.seed(12345);
 ```
 
-```{r, eval=FALSE}
-summary(cars)
-```
-
-The variables that are very correlated that must be excluded of the model are obtained from but first We must do a preprocess because the factor variables don't work with correlations 
+Next I split the data into training and cross validation set
 
 ```{r}
-str(training);
+trainIndex <- createDataPartition(trainingtemp$classe,p=0.75,list=FALSE);
+training <- trainingtemp[trainIndex,];
+cv <- trainingtemp[-trainIndex,];
 ```
 
-First I remove the variables with zero variance because they are not good predictors
 
-```{r}
-nsv <- nearZeroVar(training,saveMetrics=TRUE);
-nsv
-nsv[nsv$nzv == TRUE,];
-```
-
-The factor variables can be converted into numeric or dates when apply
-
+Next I removed the NA's values and I look for variables with zero variance because they are not good predictors, but there isn't for this set
 
 ```{r}
 n <- length(names(training));
 m <- length(training[,1]);
 training1 <- training;
 
-for (i in 1:n){
-  if (!is.factor(training1[,i])){
-    training1[is.na(training1[,i]),i] <- 0;
-  }  
-  else{
-    x <- c(x,i);
+for (i in 7:n){
+  if (is.factor(training1[,i]) & i!=160){  
+    training1[,i] <- factor(training1[,i], levels = c(levels(training1[,i]), "0"));
+    training1[training1[,i] == "",i] <- "0";
+    training1[training1[,i] == "#DIV/0!",i] <- "0";
+    training1[,i] <- as.numeric(as.character(training1[,i]));
+    cv[,i] <- factor(cv[,i], levels = c(levels(cv[,i]), "0"));
+    cv[cv[,i] == "",i] <- "0";
+    cv[cv[,i] == "#DIV/0!",i] <- "0";
+    cv[,i] <- as.numeric(as.character(cv[,i]));
+    training[,i] <- factor(training[,i], levels = c(levels(training[,i]), "0"));
+    training[training[,i] == "",i] <- "0";
+    training[training[,i] == "#DIV/0!",i] <- "0";    
+    training[,i] <- as.numeric(as.character(training[,i]));
+    
+    testing[testing[,i] == "",i] <- "0";
+    testing[testing[,i] == "#DIV/0!",i] <- "0";    
+    testing[,i] <- as.numeric(as.character(testing[,i]));        
   }
 }
 
-for (i in 1:n){
-  if (is.factor(training1[,i])){
-    f <- training1[,i];
-    training1[,i] <- as.character(levels(f))[f];
+nsv <- nearZeroVar(training1,saveMetrics=TRUE);
+nsv[nsv$nzv == TRUE & nsv$zeroVar == TRUE,];
+
+z3 <- c(14,17,26,89,92,101,127,130,139);
+x <- 1;
+for (i in 2:n){
+  if (is.numeric(training1[,i]) & !(i %in% z3)){
+    x <- c(x,i);
   }
 }
-mcor <- cov2cor(cov(training1[,-x]));
-mcor>=0.7;
+```
+
+The variables that are vey correlated that must be excluded of the model are obtained from but first We must do a preprocess because the factor variables don't work with correlations 
+
+```{r}
+mcor <- abs(cov2cor(cov(training1[,x],use="pairwise.complete.obs")));
+diag(mcor) <-0;
+varcor <- which(mcor>=0.8,arr.ind=TRUE);
+varcor1 <- varcor[order(varcor[,1]),];
+```
+
+The data frame varcor1 contains the variables correlated. With this dataset I'm going to remove the variables don't add information to the model.
+
+These are the variables that are not correlated
+
+```{r}
+z1 <- c(varcor1[1,1],160);
+z2 <- c(varcor1[1,2]);
+for (i in 2:length(varcor1[,1])){
+  if (!varcor1[i,1] %in% z3 & !varcor1[i,2] %in% z3){
+    if (!varcor1[i,1] %in% z1 & !varcor1[i,1] %in% z2){
+      z1 <- c(z1,varcor1[i,1]);
+      z2 <- c(z2,varcor1[i,2]);
+    }else if(varcor1[i,1] %in% z1 & !varcor1[i,2] %in% z2){
+      z2 <- c(z2,varcor1[i,2]);
+    }
+  }
+}  
+training2 <- training1[,z1];
+```
+
+
+Next we get the relevant fields and the results are 34 fields for building the predictive model
+I need to remove the na's values beacause de classification trees and random forest doesn't work with this NA. In order to do that I applied the missForest function in the missForest package for imputing the missing values
+
+
+```{r}
+library(missForest);
+training_miss = missForest(training1[,19:159]);
+trainingtemp1 <- cbind(training1[,1:18],training_miss$ximp,training1[,160]);
+names(trainingtemp1)[160] <- "classe"
+```
+
+Then we build the model using Random Forests (rf) initially
+
+```{r}
+modrf <- train(classe ~ cvtd_timestamp + new_window + pitch_belt + yaw_belt + total_accel_belt + kurtosis_roll_belt + max_picth_belt + gyros_belt_y + accel_belt_x + magnet_belt_y + total_accel_arm + avg_roll_arm + avg_pitch_arm + avg_yaw_arm + stddev_yaw_arm + gyros_arm_y + kurtosis_yaw_arm + skewness_roll_arm + skewness_yaw_arm + min_roll_arm + min_pitch_arm + min_yaw_arm + roll_dumbbell + pitch_dumbbell + kurtosis_picth_dumbbell + skewness_pitch_dumbbell + max_picth_dumbbell + min_pitch_dumbbell + var_accel_dumbbell + avg_roll_dumbbell + gyros_dumbbell_y + accel_dumbbell_x + accel_dumbbell_z + magnet_dumbbell_z + skewness_pitch_forearm + min_yaw_forearm + total_accel_forearm,data=trainingtemp1,method="rf");
+
+print(modrf$finalModel);
+
+cv_miss = missForest(cv[,19:159]);
+cv1 <- cbind(cv[,1:18],cv_miss$ximp,cv[,160]);
+names(cv1)[160] <- "classe"
+
+predrf <- predict(modrf,cv1);
+
+cmrf <- confusionMatrix(predrf,cv1$classe);
+
+testing_miss = missForest(testing[,19:159]);
+testing1 <- cbind(testing[,1:18],testing_miss$ximp,testing[,160]);
+names(testing1)[160] <- "problem_id";
+
+predtest <- predict(modrpart,testing1);
+```
+
+Finally we plot the charts
+
+```{r}
+library(rattle);
+par(mfrow=c(1,1));
+fancyRpartPlot(modrf$finalModel);
 ```
