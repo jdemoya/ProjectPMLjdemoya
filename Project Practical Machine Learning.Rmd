@@ -115,7 +115,7 @@ names(trainingtemp1)[160] <- "classe"
 
 Then we build the model using Random Forests (rf)
 
-```{r}
+```{r cache=TRUE}
 
 modrf <- train(classe ~ cvtd_timestamp + new_window + pitch_belt + yaw_belt + total_accel_belt + kurtosis_roll_belt + max_picth_belt + gyros_belt_y + accel_belt_x + magnet_belt_y + total_accel_arm + avg_roll_arm + avg_pitch_arm + avg_yaw_arm + stddev_yaw_arm + gyros_arm_y + kurtosis_yaw_arm + skewness_roll_arm + skewness_yaw_arm + min_roll_arm + min_pitch_arm + min_yaw_arm + roll_dumbbell + pitch_dumbbell + kurtosis_picth_dumbbell + skewness_pitch_dumbbell + max_picth_dumbbell + min_pitch_dumbbell + var_accel_dumbbell + avg_roll_dumbbell + gyros_dumbbell_y + accel_dumbbell_x + accel_dumbbell_z + magnet_dumbbell_z + skewness_pitch_forearm + min_yaw_forearm + total_accel_forearm,data=trainingtemp1,method="rf");
 
@@ -123,7 +123,8 @@ print(modrf$finalModel);
 
 ```
 
-Then I compute de cross validation error of the model
+Then I compute de cross validation error of the model and I expect the accuracy should be more than 80%
+
 ```{r}
 cv_miss = missForest(cv[,19:159]);
 cv1 <- cbind(cv[,1:18],cv_miss$ximp,cv[,160]);
@@ -135,23 +136,38 @@ cmrf <- confusionMatrix(predrf,cv1$classe);
 cmrf;
 ```
 
-That's model give us the lowest accuracy between rpart and lda
+This model give us the lowest accuracy between rpart and lda
 
 
 Then I predict the classe variable in the testing set but before I need to imputing the na values of the testing set
 
 ```{r}
-testing_miss = missForest(testing[,19:159]);
-testing1 <- cbind(testing[,1:18],testing_miss$ximp,testing[,160]);
-names(testing1)[160] <- "problem_id";
+testing1 <- testing
 
-predtest <- predict(modrpart,testing1);
+for (i in 7:n){
+if (is.logical(testing1[,i])){  
+testing1[,i] <- as.numeric(testing1[,i]);
+} 
+}
+
+mt <- matrix(1,ncol=160);
+mt[1,11] <- mean(trainingtemp1[,11]);
+for (i in 12:159){
+  mt[1,i] <- mean(trainingtemp1[,i]);
+}
+
+for (i in 11:159){
+if (is.na(testing1[1,i])){
+testing1[,i] <- mt[1,i];
+}
+}
+
+predtest <- predict(modrf,testing1);
 ```
 
 Finally we plot the charts
 
 ```{r}
-library(rattle);
-par(mfrow=c(1,1));
-fancyRpartPlot(modrf$finalModel);
+plot(modrf, log="y");
+varImpPlot(modrf$finalModel);
 ```
