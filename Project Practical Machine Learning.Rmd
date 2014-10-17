@@ -30,7 +30,7 @@ cv <- trainingtemp[-trainIndex,];
 ```
 
 
-Next I removed the NA's values and I look for variables with zero variance because they are not good predictors, but there isn't for this set
+Next I transform the factor variables to numeric and replace the values "" and #DIV/0 in the training ad cross-validation set
 
 ```{r}
 n <- length(names(training));
@@ -51,13 +51,13 @@ for (i in 7:n){
     training[training[,i] == "",i] <- "0";
     training[training[,i] == "#DIV/0!",i] <- "0";    
     training[,i] <- as.numeric(as.character(training[,i]));
-    
-    testing[testing[,i] == "",i] <- "0";
-    testing[testing[,i] == "#DIV/0!",i] <- "0";    
-    testing[,i] <- as.numeric(as.character(testing[,i]));        
   }
 }
+```
 
+Then I removed the variables with zero variance
+
+```{r}
 nsv <- nearZeroVar(training1,saveMetrics=TRUE);
 nsv[nsv$nzv == TRUE & nsv$zeroVar == TRUE,];
 
@@ -70,7 +70,7 @@ for (i in 2:n){
 }
 ```
 
-The variables that are vey correlated that must be excluded of the model are obtained from but first We must do a preprocess because the factor variables don't work with correlations 
+Then I removed the variables that are very correlated because they must be excluded of the model
 
 ```{r}
 mcor <- abs(cov2cor(cov(training1[,x],use="pairwise.complete.obs")));
@@ -97,10 +97,12 @@ for (i in 2:length(varcor1[,1])){
   }
 }  
 training2 <- training1[,z1];
+var2 <- paste(names(training2[,-2]),collapse=" + ");
 ```
 
 
-Next we get the relevant fields and the results are 34 fields for building the predictive model
+Next we get the relevant fields and the results are 29 fields for building the predictive model
+
 I need to remove the na's values beacause de classification trees and random forest doesn't work with this NA. In order to do that I applied the missForest function in the missForest package for imputing the missing values
 
 
@@ -111,9 +113,10 @@ trainingtemp1 <- cbind(training1[,1:18],training_miss$ximp,training1[,160]);
 names(trainingtemp1)[160] <- "classe"
 ```
 
-Then we build the model using Random Forests (rf) initially
+Then we build the model using Random Forests (rf)
 
 ```{r}
+
 modrf <- train(classe ~ cvtd_timestamp + new_window + pitch_belt + yaw_belt + total_accel_belt + kurtosis_roll_belt + max_picth_belt + gyros_belt_y + accel_belt_x + magnet_belt_y + total_accel_arm + avg_roll_arm + avg_pitch_arm + avg_yaw_arm + stddev_yaw_arm + gyros_arm_y + kurtosis_yaw_arm + skewness_roll_arm + skewness_yaw_arm + min_roll_arm + min_pitch_arm + min_yaw_arm + roll_dumbbell + pitch_dumbbell + kurtosis_picth_dumbbell + skewness_pitch_dumbbell + max_picth_dumbbell + min_pitch_dumbbell + var_accel_dumbbell + avg_roll_dumbbell + gyros_dumbbell_y + accel_dumbbell_x + accel_dumbbell_z + magnet_dumbbell_z + skewness_pitch_forearm + min_yaw_forearm + total_accel_forearm,data=trainingtemp1,method="rf");
 
 print(modrf$finalModel);
@@ -132,7 +135,10 @@ cmrf <- confusionMatrix(predrf,cv1$classe);
 cmrf;
 ```
 
-Then I predict the classe variable in the testing set 
+That's model give us the lowest accuracy between rpart and lda
+
+
+Then I predict the classe variable in the testing set but before I need to imputing the na values of the testing set
 
 ```{r}
 testing_miss = missForest(testing[,19:159]);
